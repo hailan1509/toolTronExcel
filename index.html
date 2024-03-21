@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload and Read ZIP File</title>
+    <!-- Nhúng thư viện JSZip từ CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.14.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" integrity="sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <p><b>Dòng bắt đầu trộn</b></p> <input type="number" id="rowStart" value="5">
+            </div>
+            <div class="col-md-4">
+                <p><b>File trộn</b> </p><input type="file" id="fileTron" >
+            </div>
+            <div class="col-md-4">
+                <p><b>File mẫu</b></p> <input type="file" id="fileTemp">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <p><b>Tên file ở cột</b> </p> <input type="text" id="outputName" value="B">
+            </div>
+            <div class="col-md-4">
+                <p><b>Cấu trúc trộn</b></p><textarea name="" id="rule" cols="30" rows="5" placeholder="'Cột file trộn'=>'Ô ở file mẫu'">B=>F5
+D=>E8
+F=>F8</textarea>
+            </div>
+            <div class="col-md-4 align-self-center">
+                <button class="btn btn-primary" id="btn-create">Trộn</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL' ];
+        var dataTron = {};
+        var zip = new JSZip();
+        $("#fileTron").on("change", function (e) {
+            var file = e.target.files[0];
+            // input canceled, return
+            if (!file) return;
+            
+            var FR = new FileReader();
+            FR.onload = function(e) {
+                var data = new Uint8Array(e.target.result);
+                var workbook = XLSX.read(data, {type: 'array'});
+                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // header: 1 instructs xlsx to create an 'array of arrays'
+                let result = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                dataTron = result.reduce(function (result, item, index) {
+                    let tmp = {};
+                    if (typeof item == 'object' && item.length > 0) {
+                        item.forEach((v, k) => {
+                            tmp[columns[k]] = v;
+                        })
+                        if (index >= parseInt($('#rowStart').val()) - 1)
+                            result[index] = tmp;
+                    }
+                    return result;
+                }, {})
+            };
+            FR.readAsArrayBuffer(file);
+        });
+        async function createExcelFile(templateFile, outputFilePath, rowData) {
+            if (!($('#outputName').val() in rowData)) {
+                alert('Không có dữ liệu tại cột '+ $('#outputName').val() + ' tại file trộn!');
+                return;
+            }
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(templateFile);
+
+            const sheet = workbook.getWorksheet(); // Assume dữ liệu được điền vào sheet đầu tiên
+
+            // await fillDataToSheet(worksheet, rowData);
+            const ruleIp = $('#rule').val();
+            const ruleArr = ruleIp.split(/\r?\n|\r|\n/g);
+            let rule = {};
+            ruleArr.forEach((v, k) => {
+                let tmp = v.split('=>');
+                if (tmp.length == 2) {
+                    rule[tmp[0]] = tmp[1];
+                }
+                else {
+                    alert("xem lại cấu trúc trộn");
+                    return;
+                }
+            })
+            Object.keys(rule).forEach(key => {
+                if (key in rule && key in rowData) {
+                    sheet.getCell(rule[key]).value = rowData[key];
+                }
+            })
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            zip.file(rowData[$('#outputName').val()] + '.xlsx', buffer);
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        }
+        async function fillDataToSheet(sheet, rowData) {
+            const ruleIp = $('#rule').val();
+            const ruleArr = ruleIp.split(/\r?\n|\r|\n/g);
+            let rule = {};
+            ruleArr.forEach((v, k) => {
+                let tmp = v.split('=>');
+                if (tmp.length == 2) {
+                    rule[tmp[0]] = tmp[1];
+                }
+                else {
+                    alert("xem lại cấu trúc trộn");
+                    return;
+                }
+            })
+            console.log(rule);
+            Object.keys(rule).forEach(key => {
+                if (key in rule && key in rowData) {
+                    sheet.getCell(rule[key]).value = rowData[key];
+                }
+            })
+        }
+        $("#btn-create").click(async function() {
+            zip = new JSZip();
+            const file = $("#fileTemp")[0].files[0];
+            if (!file) {
+                alert("Vui lòng chọn file mẫu!");
+                return;
+            }
+            const promises = Object.values(dataTron).map(async (v, i) => {
+                const outputFilePath = `output_${i + 1}.xlsx`;
+                await createExcelFile(file, outputFilePath, v);
+                console.log(`File ${outputFilePath} đã được tạo thành công.`);
+            })
+            await Promise.all(promises);
+            const content = await zip.generateAsync({ type: 'blob' });
+
+            // Create a download link for the ZIP file
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(content);
+            link.download = 'Output.zip';
+            link.click();
+        })
+    </script>
+</body>
+</html>
