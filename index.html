@@ -106,7 +106,6 @@ F=>F8</textarea>
         });
         async function createExcelFile(templateFile, outputFilePath, rowData) {
             if (!($('#outputName').val() in rowData)) {
-                alert('Không có dữ liệu tại cột '+ $('#outputName').val() + ' tại file trộn!');
                 return;
             }
             const workbook = new ExcelJS.Workbook();
