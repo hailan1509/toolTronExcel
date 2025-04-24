@@ -77,10 +77,11 @@
                 </div>
                 <div class="col-md-6 col-sm-6 col-lg-3">
                     <b>Định dạng trộn</b> :
-                    <textarea class="form-control" name="" id="mapping" cols="30" rows=7" text="">A=>E5,J=>E8,K=>E9</textarea>
+                    <textarea class="form-control" name="" id="mapping" cols="30" rows=7" text="">A=>E5,B=>C8,C=>C9,D=>C10,E=>C11,F=>C12,G=>D8,H=>D9,I=>D10,J=>D11,K=>D12,L=>E7,M=>E13
+                    </textarea>
                 </div>
                 <div class="col-md-6 col-sm-6 col-lg-3">
-                    <b>Dòng bắt đầu file trộn :</b> <input class="form-control" type="number" name="" id="rowStart" value="3">
+                    <b>Dòng bắt đầu file trộn :</b> <input class="form-control" type="number" name="" id="rowStart" value="2">
                     <b>Cột tên file</b> : <input class="form-control" type="text" maxlength="1" name="" id="fileNameFormat" value="A">
                     <hr>
                     <button id="mergeButton" class="btn btn-success">Trộn</button>
@@ -145,11 +146,13 @@
 
                     // Kiểm tra tên file
                     if (!fileName || typeof fileName !== 'string') {
-                        //throw new Error(`Tên file không hợp lệ ở dòng ${rowNumber}`);
+                        console.log(row);
+                        throw new Error(`Tên file không hợp lệ ở dòng ${rowNumber} tên ${fileName}`);
                     }
                     else {
                         // Ghi file vào zip
                         const buffer = await newWorkbook.outputAsync();
+                        console.log(`${fileName}.xlsx`)
                         zip.file(`${fileName}.xlsx`, buffer);
                     }
 
