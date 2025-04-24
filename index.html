@@ -1,186 +1,173 @@
 <!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload and Read ZIP File</title>
-    <!-- Nhúng thư viện JSZip từ CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.14.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" integrity="sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
-    <style>
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.7);
-            display: none; /* Ẩn ban đầu */
-        }
+<html lang="en">
+    <head>
+        <title>Tool trộn Excel</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+        <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" integrity="sha512-dlPw+ytv/6JyepmelABrgeYgHI0O+frEwgfnPdXDTOIZz+eDgfW07QXG02/O8COfivBdGNINy+Vex+lYmJ5rxw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx-populate/1.21.0/xlsx-populate.min.js" integrity="sha512-JVBz6zJ6cvcRjn7GayGJ/dsfYmykXq/O+BG5jqvCotbSkRd7pD/k0q/wqoIKEgXTh9lBxWoInk0DgrDhpXc9JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <style>
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5); /* Màu nền mờ */
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999; /* Đảm bảo ở trên cùng */
+            }
 
-        .loading-spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border: 8px solid #f3f3f3; /* Xoay nền */
-            border-top: 8px solid #3498db; /* Màu chính */
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite; /* Hiệu ứng xoay */
-        }
+            .loading-content {
+                text-align: center;
+                color: white;
+            }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-    </div>
-    <div class="container">
-        <div class="row">
-            <div class="col-md-4">
-                <p><b>Dòng bắt đầu trộn</b></p> <input type="number" id="rowStart" value="5">
-            </div>
-            <div class="col-md-4">
-                <p><b>File trộn</b> </p><input type="file" id="fileTron" >
-            </div>
-            <div class="col-md-4">
-                <p><b>File mẫu</b></p> <input type="file" id="fileTemp">
+            .spinner {
+                border: 12px solid #f3f3f3; /* Light grey */
+                border-top: 12px solid #3498db; /* Blue */
+                border-radius: 50%;
+                width: 80px;
+                height: 80px;
+                animation: spin 2s linear infinite;
+                margin-bottom: 10px;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .loading-text {
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            .d-none {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="loadingOverlay" class="loading-overlay d-none">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p class="loading-text">Vui lòng chờ...</p>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-4">
-                <p><b>Tên file ở cột</b> </p> <input type="text" id="outputName" value="B">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <h1>Tool trộn Excel</h1>
+                </div>
             </div>
-            <div class="col-md-4">
-                <p><b>Cấu trúc trộn</b></p><textarea name="" id="rule" cols="30" rows="5" placeholder="'Cột file trộn'=>'Ô ở file mẫu'">B=>F5
-D=>E8
-F=>F8</textarea>
-            </div>
-            <div class="col-md-4 align-self-center">
-                <button class="btn btn-primary" id="btn-create">Trộn</button>
+            <div class="row">
+                <div class="col-md-6">
+                    <b>File trộn</b> : <input class="form-control" type="file" name="" id="fileMix">
+                </div>
+                <div class="col-md-6">
+                    <b>File mẫu</b> : <input class="form-control" type="file" name="" id="fileTemplate">
+                </div>
+                <div class="col-md-6 col-sm-6 col-lg-3">
+                    <b>Định dạng trộn</b> :
+                    <textarea class="form-control" name="" id="mapping" cols="30" rows=7" text="">A=>E5,J=>E8,K=>E9</textarea>
+                </div>
+                <div class="col-md-6 col-sm-6 col-lg-3">
+                    <b>Dòng bắt đầu file trộn :</b> <input class="form-control" type="number" name="" id="rowStart" value="3">
+                    <b>Cột tên file</b> : <input class="form-control" type="text" maxlength="1" name="" id="fileNameFormat" value="A">
+                    <hr>
+                    <button id="mergeButton" class="btn btn-success">Trộn</button>
+                </div>
             </div>
         </div>
-    </div>
-
+    </body>
     <script>
-        const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL' ];
-        var dataTron = {};
-        var zip = new JSZip();
-        $("#fileTron").on("change", function (e) {
-            var file = e.target.files[0];
-            // input canceled, return
-            if (!file) return;
-            
-            var FR = new FileReader();
-            FR.onload = function(e) {
-                var data = new Uint8Array(e.target.result);
-                var workbook = XLSX.read(data, {type: 'array'});
-                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // header: 1 instructs xlsx to create an 'array of arrays'
-                let result = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-                dataTron = result.reduce(function (result, item, index) {
-                    let tmp = {};
-                    if (typeof item == 'object' && item.length > 0) {
-                        item.forEach((v, k) => {
-                            tmp[columns[k]] = v;
-                        })
-                        if (index >= parseInt($('#rowStart').val()) - 1)
-                            result[index] = tmp;
+        document.getElementById('mergeButton').addEventListener('click', async function () {
+            const overlay = document.getElementById('loadingOverlay');
+            const fileMix = document.getElementById('fileMix').files[0];
+            const fileTemplate = document.getElementById('fileTemplate').files[0];
+            const mappingInput = document.getElementById('mapping').value;
+            const fileNameColumn = document.getElementById('fileNameFormat').value;
+            const rowStart = parseInt(document.getElementById('rowStart').value, 10);
+
+            if (!fileMix || !fileTemplate || !mappingInput || !fileNameColumn || isNaN(rowStart)) {
+                alert('Vui lòng nhập đủ thông tin.');
+                return;
+            }
+
+            overlay.classList.remove('d-none');
+
+            try {
+                // Parse mapping input
+                const mappings = mappingInput.split(',').reduce((acc, pair) => {
+                    const [colMix, cellTemplate] = pair.split('=>');
+                    acc[colMix.trim()] = cellTemplate.trim();
+                    return acc;
+                }, {});
+
+                // Đọc file Excel trộn
+                const workbookMix = await XlsxPopulate.fromDataAsync(await fileMix.arrayBuffer());
+                const sheetMix = workbookMix.sheet(0); // Giả sử chỉ có 1 sheet
+
+                // Đọc file Excel mẫu
+                const workbookTemplate = await XlsxPopulate.fromDataAsync(await fileTemplate.arrayBuffer());
+
+                const zip = new JSZip();
+
+                for (let rowNumber = rowStart; rowNumber <= sheetMix.usedRange().endCell().rowNumber(); rowNumber++) {
+                    const row = sheetMix.row(rowNumber);
+
+                    // Clone workbook template
+                    const newWorkbook = await XlsxPopulate.fromDataAsync(await fileTemplate.arrayBuffer());
+                    const newSheet = newWorkbook.sheet(0);
+
+                    // Điền dữ liệu theo mapping từ file trộn
+                    for (let colMix in mappings) {
+                        const cellTemplate = mappings[colMix];
+                        const cellMix = row.cell(colMix);
+
+                        // Lấy giá trị của ô, dù có công thức hay không
+                        const valueToInsert = cellMix.value();
+
+                        const cellToFill = newSheet.cell(cellTemplate);
+                        cellToFill.value(valueToInsert); // Gán giá trị từ file trộn
                     }
-                    return result;
-                }, {})
-            };
-            FR.readAsArrayBuffer(file);
+
+                    // Lấy tên file từ cột đã chọn
+                    const fileName = row.cell(fileNameColumn).value();
+
+                    // Kiểm tra tên file
+                    if (!fileName || typeof fileName !== 'string') {
+                        //throw new Error(`Tên file không hợp lệ ở dòng ${rowNumber}`);
+                    }
+                    else {
+                        // Ghi file vào zip
+                        const buffer = await newWorkbook.outputAsync();
+                        zip.file(`${fileName}.xlsx`, buffer);
+                    }
+
+                }
+
+                // Tạo file zip
+                const content = await zip.generateAsync({ type: 'blob' });
+                saveAs(content, 'TongHopFile.zip'); // Tải file zip về
+
+            } catch (error) {
+                console.error('Có lỗi xảy ra trong quá trình xử lý:', error.stack);
+                alert('Có lỗi xảy ra trong quá trình xử lý.');
+            } finally {
+                overlay.classList.add('d-none');
+            }
         });
-        async function createExcelFile(templateFile, outputFilePath, rowData) {
-            if (!($('#outputName').val() in rowData)) {
-                return;
-            }
-            const workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.load(templateFile);
 
-            const sheet = workbook.getWorksheet(); // Assume dữ liệu được điền vào sheet đầu tiên
-
-            // await fillDataToSheet(worksheet, rowData);
-            const ruleIp = $('#rule').val();
-            const ruleArr = ruleIp.split(/\r?\n|\r|\n/g);
-            let rule = {};
-            ruleArr.forEach((v, k) => {
-                let tmp = v.split('=>');
-                if (tmp.length == 2) {
-                    rule[tmp[0]] = tmp[1];
-                }
-                else {
-                    alert("xem lại cấu trúc trộn");
-                    return;
-                }
-            })
-            Object.keys(rule).forEach(key => {
-                if (key in rule && key in rowData) {
-                    sheet.getCell(rule[key]).value = rowData[key];
-                }
-            })
-
-            const buffer = await workbook.xlsx.writeBuffer();
-            zip.file(rowData[$('#outputName').val()] + '.xlsx', buffer);
-            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        }
-        async function fillDataToSheet(sheet, rowData) {
-            const ruleIp = $('#rule').val();
-            const ruleArr = ruleIp.split(/\r?\n|\r|\n/g);
-            let rule = {};
-            ruleArr.forEach((v, k) => {
-                let tmp = v.split('=>');
-                if (tmp.length == 2) {
-                    rule[tmp[0]] = tmp[1];
-                }
-                else {
-                    alert("xem lại cấu trúc trộn");
-                    return;
-                }
-            })
-            console.log(rule);
-            Object.keys(rule).forEach(key => {
-                if (key in rule && key in rowData) {
-                    sheet.getCell(rule[key]).value = rowData[key];
-                }
-            })
-        }
-        $("#btn-create").click(async function() {
-            zip = new JSZip();
-            document.getElementById("loadingOverlay").style.display = 'block';
-            const file = $("#fileTemp")[0].files[0];
-            if (!file) {
-                alert("Vui lòng chọn file mẫu!");
-                return;
-            }
-            const promises = Object.values(dataTron).map(async (v, i) => {
-                const outputFilePath = `output_${i + 1}.xlsx`;
-                await createExcelFile(file, outputFilePath, v);
-                console.log(`File ${outputFilePath} đã được tạo thành công.`);
-            })
-            await Promise.all(promises);
-            const content = await zip.generateAsync({ type: 'blob' });
-
-            // Create a download link for the ZIP file
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(content);
-            link.download = 'Output.zip';
-            link.click();
-            document.getElementById("loadingOverlay").style.display = 'none';
-        })
     </script>
-</body>
+        
+    
 </html>
